@@ -1,14 +1,23 @@
-const STORAGE_KEY = 'salud_mama_records_v1';
-const CONFIG_KEY = 'salud_mama_config_v1';
+const STORAGE_KEY = 'salud_familia_records_v1';
+const CONFIG_KEY = 'salud_familia_config_v1';
+const ACTIVE_USER_KEY = 'salud_familia_active_user_v1';
 
 const DEFAULT_CONFIG = {
-  scriptUrl: 'https://script.google.com/macros/s/AKfycbxYuLS6HZRFyJyQ-5WDa5DXngwwAdpOFVmM3rbNLQiL737dZUx8jmRt9EVcm7ph3WbiOQ/exec',
+  scriptUrl: 'https://script.google.com/macros/s/AKfycbzs8EaVBxVAvrNMWpHUu6cRJDKA1dyN4BC7T5p7t0RIB8630AklaivKC5dWQQwkbn3a-w/exec',
   whatsapp: '573013179537',
   targetSys: 139,
   targetDia: 89,
   highSys: 160,
   highDia: 100
 };
+
+export function getActiveUser() {
+  return localStorage.getItem(ACTIVE_USER_KEY) || 'Mamá';
+}
+
+export function setActiveUser(user) {
+  localStorage.setItem(ACTIVE_USER_KEY, user);
+}
 
 export function getConfig() {
   const saved = localStorage.getItem(CONFIG_KEY);
@@ -26,10 +35,6 @@ export function getConfig() {
   }
 }
 
-export function saveConfig(cfg) {
-  localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg));
-}
-
 export function getLocalRecords() {
   const raw = localStorage.getItem(STORAGE_KEY);
   return raw ? JSON.parse(raw) : [];
@@ -43,6 +48,7 @@ export async function syncFromSheets(scriptUrl) {
     if (data.status === 'ok' && Array.isArray(data.records)) {
       const normalized = data.records.map((r) => ({
         id: r.ID,
+        usuario: r.Usuario || 'Mamá',
         fecha: r.Fecha,
         hora: r.Hora,
         jornada: r.Jornada,
