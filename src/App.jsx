@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { PlusCircle, BarChart3, Check, RotateCcw } from 'lucide-react';
 import RegisterForm from './components/RegisterForm';
 import SummaryView from './components/SummaryView';
 import AlertModal from './components/AlertModal';
 import {
   getConfig,
+  getActiveUser,
+  setActiveUser,
   getLocalRecords,
   syncFromSheets,
   saveRecord,
@@ -13,6 +15,7 @@ import {
 
 export default function App() {
   const [tab, setTab] = useState('register');
+  const [activeUser, setUserState] = useState(() => getActiveUser());
   const [config] = useState(() => getConfig());
   const [records, setRecords] = useState(() => getLocalRecords());
   const [toast, setToast] = useState('');
@@ -26,6 +29,17 @@ export default function App() {
     }
   }, [config.scriptUrl]);
 
+  const handleSelectUser = (user) => {
+    setUserState(user);
+    setActiveUser(user);
+  };
+
+  // Filtra solo los registros de la persona seleccionada (Mamá o Papá)
+  const userRecords = useMemo(
+    () => records.filter((r) => (r.usuario || 'Mamá') === activeUser),
+    [records, activeUser]
+  );
+
   const showToast = (msg, undoId = null) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast(msg);
@@ -37,11 +51,15 @@ export default function App() {
   };
 
   const handleSaveRecord = async (payload, evaluation) => {
-    const updated = await saveRecord(payload, config.scriptUrl);
+    const recordWithUser = { ...payload, usuario: activeUser };
+    const updated = await saveRecord(recordWithUser, config.scriptUrl);
     setRecords(updated);
-    showToast(`¡Guardado! (${payload.sistolica}/${payload.diastolica})`, payload.id);
+    showToast(
+      `¡Guardado para ${activeUser}! (${payload.sistolica}/${payload.diastolica})`,
+      payload.id
+    );
     if (evaluation.alert) {
-      setAlertModal({ record: payload, evaluation });
+      setAlertModal({ record: recordWithUser, evaluation });
     }
   };
 
@@ -56,10 +74,39 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-stone-900 font-sans">
       <div className="max-w-md mx-auto px-4 pt-5">
-        <header className="mb-4">
-          <h1 className="text-2xl font-extrabold text-teal-900 tracking-tight">
-            Mi Salud
-          </h1>
+        <header className="mb-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-extrabold text-teal-900 tracking-tight">
+              Mi Salud
+            </h1>
+            <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-teal-100 text-teal-900">
+              Perfil: {activeUser}
+            </span>
+          </div>
+
+          {/* Selector grande Mamá / Papá */}
+          <div className="grid grid-cols-2 gap-2 p-1.5 bg-stone-200/80 rounded-2xl">
+            {['Mamá', 'Papá'].map((person) => {
+              const isSelected = activeUser === person;
+              return (
+                <button
+                  key={person}
+                  type="button"
+                  onClick={() => handleSelectUser(person)}
+                  className={`py-2.5 rounded-xl font-extrabold text-lg transition flex items-center justify-center gap-2 ${
+                    isSelected
+                      ? person === 'Mamá'
+                        ? 'bg-teal-700 text-white shadow-sm'
+                        : 'bg-sky-800 text-white shadow-sm'
+                      : 'text-stone-600 hover:text-stone-900'
+                  }`}
+                >
+                  <span>{person === 'Mamá' ? '👩' : '👨'}</span>
+                  <span>{person}</span>
+                </button>
+              );
+            })}
+          </div>
         </header>
 
         {toast && (
@@ -82,9 +129,19 @@ export default function App() {
         )}
 
         {tab === 'register' && (
-          <RegisterForm config={config} records={records} onSave={handleSaveRecord} />
+          <RegisterForm
+            config={config}
+            records={userRecords}
+            onSave={handleSaveRecord}
+          />
         )}
-        {tab === 'summary' && <SummaryView records={records} config={config} />}
+        {tab === 'summary' && (
+          <SummaryView
+            records={userRecords}
+            config={config}
+            activeUser={activeUser}
+          />
+        )}
       </div>
 
       <nav className="fixed bottom-0 inset-x-0 bg-white border-t border-stone-200 px-4 py-2.5">
@@ -109,7 +166,7 @@ export default function App() {
             }`}
           >
             <BarChart3 className="w-5 h-5" />
-            Mi Resumen
+            Resumen {activeUser}
           </button>
         </div>
       </nav>
